@@ -12,7 +12,7 @@ int main()
 	if (fl==-1)
 		return 1;
 
-	int res=fallocate_wrapper(fl, 1000000000LL);
+	int res=fallocate_wrapper(fl, 100000000LL);
 	if (res==0)
 		printf("Success!\n");
 	close(fl);

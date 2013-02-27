@@ -87,7 +87,7 @@ int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
 
 bool prepare_fallocate_wrapper()
 {
-	return true; //No-op on Linux
+	return true; //no-op on linux
 }
 
 //Linux is fscked up a little bit differently - there's no exported fallocate64
@@ -104,11 +104,11 @@ int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
 	if (size_to_reserve <= 0)
 		return 0;
 
-	long long int cur_pos = lseek64(hndl, 0, SEEK_END);
+	long long int cur_pos = lseek64(hndl, 0, seek_end);
 	if (cur_pos==-1)
 		return -1;
 
-        if (fallocate64_raw(hndl, 0, cur_pos, size_to_reserve)==0)
+	if (fallocate64_raw(hndl, 0, cur_pos, size_to_reserve)==0)
 		return 0;
 
 	//No such luck :( Use good old lseek64.
@@ -123,4 +123,36 @@ int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
 }
 	
 #endif //__gnu_linux__
+
+#ifdef __MACH__
+#include <unistd.h>
+#include <fcntl.h>
+#include "fallocate.h"
+
+bool prepare_fallocate_wrapper()
+{
+	return true; //no-op on Mac
+}
+
+int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
+{
+	if (size_to_reserve <= 0)
+		return 0;
+
+	long long int cur_pos = lseek(hndl, 0, SEEK_END);
+	if (cur_pos==-1)
+		return -1;
+
+    //Allocate any type of blocks, including non-continuous
+	fstore_t store={0};
+	store.fst_flags = F_ALLOCATEALL;
+	store.fst_posmode = F_PEOFPOSMODE;
+	store.fst_offset = cur_pos;
+	store.fst_length = size_to_reserve;
+	fcntl(hndl, F_PREALLOCATE, &store);
+
+	//Hopefully, fcntl should have allocated our file and we won't block here.
+	return ftruncate(hndl, size_to_reserve+cur_pos);
+}
+#endif //__MACH__
 

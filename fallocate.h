@@ -8,7 +8,7 @@ typedef HANDLE handle_t;
 
 #else
 
-#ifdef __gnu_linux__
+#if defined(__gnu_linux__) or defined(__MACH__)
 typedef int handle_t;
 #else
 #error "Unknown platform"
@@ -26,6 +26,8 @@ bool prepare_fallocate_wrapper();
 	Consult GetLastError() on Windows or errno on Linux for detailed cases.
 
 	Please note, that we DO NOT guarantee that the reserved space will be zero-filled.
+
+	Current file position after this method is undefined.
 */
 int fallocate_wrapper(handle_t hndl, long long int size_to_reserve);
 
