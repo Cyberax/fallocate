@@ -57,7 +57,7 @@ int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
 	//Bummer. Can't expand the file this way - now try sparse files	
 	DWORD temp=0;
 	//Mark the file as sparse.
-    if (DeviceIoControl(hndl, FSCTL_SET_SPARSE, NULL, 0, NULL, 0,  &temp, NULL)!=0)
+   	if (DeviceIoControl(hndl, FSCTL_SET_SPARSE, NULL, 0, NULL, 0,  &temp, NULL)!=0)
 	{				
 		FILE_ZERO_DATA_INFORMATION range;
 		range.FileOffset = old_pos;
@@ -80,10 +80,47 @@ int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
 }
 #endif //WIN32
 
-#ifdef LINUX
+#ifdef __gnu_linux__
+#include <unistd.h>
+#include <sys/syscall.h>
+#include "fallocate.h"
+
 bool prepare_fallocate_wrapper()
 {
 	return true; //No-op on Linux
 }
 
-#endif //LINUX
+//Linux is fscked up a little bit differently - there's no exported fallocate64
+//call in some old glibc versions. So just make a small syscall wrapper that
+//can call the syscall directly.
+#define fallocate_syscall_num 285
+static int fallocate64_raw(int fd, int mode, __off64_t offset, __off64_t len)
+{
+	return syscall(fallocate_syscall_num, fd, mode, offset, len);
+}
+
+int fallocate_wrapper(handle_t hndl, long long int size_to_reserve)
+{
+	if (size_to_reserve <= 0)
+		return 0;
+
+	long long int cur_pos = lseek64(hndl, 0, SEEK_END);
+	if (cur_pos==-1)
+		return -1;
+
+        if (fallocate64_raw(hndl, 0, cur_pos, size_to_reserve)==0)
+		return 0;
+
+	//No such luck :( Use good old lseek64.
+	if (lseek64(hndl, cur_pos+size_to_reserve-1, SEEK_SET)==-1)
+		return -1;
+	//Really force the file write.
+	const char *one="O";
+	if (write(hndl, one, 1)==-1)
+		return -1;
+
+	return 0;
+}
+	
+#endif //__gnu_linux__
+

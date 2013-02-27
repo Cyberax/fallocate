@@ -8,7 +8,7 @@ typedef HANDLE handle_t;
 
 #else
 
-#ifdef LINUX
+#ifdef __gnu_linux__
 typedef int handle_t;
 #else
 #error "Unknown platform"

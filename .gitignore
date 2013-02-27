@@ -12,6 +12,8 @@
 *.la
 *.a
 
+test_linux
+
 *.sdf
 *.opensdf
 *.suo
