@@ -11,3 +11,9 @@
 *.lai
 *.la
 *.a
+
+*.sdf
+*.opensdf
+*.suo
+Debug
+Release
